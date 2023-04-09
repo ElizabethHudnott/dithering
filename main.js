@@ -66,7 +66,7 @@ class DitherPattern {
 	/**
 	 * @param {number[]} color
 	 */
-	async createPattern(context, color) {
+	async createPattern(context, color, horizontalRotation = 0, verticalRotation = 0) {
 		color = to32BitColor(color);
 		const width = this.width;
 		const height = this.height;
@@ -74,9 +74,10 @@ class DitherPattern {
 		const pixels = imageData.data;
 		let offset = 0;
 		for (let j = 0; j < height; j++) {
-			const row = this.pattern[j];
+			const row = this.pattern[(j + verticalRotation) % height];
 			for (let i = 0; i < width; i++) {
-				if (row[i] === 1) {
+				const value = row[(i + horizontalRotation) % width];
+				if (value === 1) {
 					pixels.set(color, offset);
 				}
 				offset += 4;
@@ -86,8 +87,8 @@ class DitherPattern {
 		return context.createPattern(bitmap, 'repeat');
 	}
 
-	static checkerboard(modX = 2, emptyRows = 0, right = false) {
-		const numRows = 2 + 2 * emptyRows;
+	static offsetDots(modX = 2, offset = Math.trunc(modX / 2), yGap1 = 0, yGap2 = yGap1) {
+		const numRows = 2 + yGap1 + yGap2;
 		const rows = new Array(numRows);
 
 		const firstRow = new Array(modX);
@@ -97,31 +98,53 @@ class DitherPattern {
 
 		const emptyRow = new Array(modX);
 		emptyRow.fill(0);
-		for (let i = 1; i <= emptyRows; i++) {
-			rows[i] = emptyRow.slice();
+		for (let j = 1; j <= yGap1; j++) {
+			rows[j] = emptyRow.slice();
 		}
 
-		const rounding = right ? Math.ceil : Math.trunc;
-		const index = rounding(modX / 2);
-		const secondRow = firstRow.slice(-index);
-		rows[1 + emptyRows] = secondRow;
-		for (let i = index; i < modX; i++) {
-			secondRow[i] = firstRow[i - index];
+		const secondRow = firstRow.slice(-offset);
+		for (let i = offset; i < modX; i++) {
+			secondRow[i] = firstRow[i - offset];
 		}
+		rows[1 + yGap1] = secondRow;
 
-		for (let i = 2 + emptyRows; i < numRows; i++) {
-			rows[i] = emptyRow.slice();
+		for (let j = 2 + yGap1; j < numRows; j++) {
+			rows[j] = emptyRow.slice();
 		}
 
 		return new DitherPattern(rows);
 	}
 
-	static verticalStripes(width = 1, gap = 1) {
-		const row = new Array(width + gap);
+	static horizontalStripes(height = 1, gap = 1) {
+		const numRows = height + gap;
+		const rows = new Array(numRows);
+		const onRow = [1];
+		const offRow = [0];
+		for (let j = 0; j < height; j++) {
+			rows[j] = onRow.slice();
+		}
+		for (let j = height; j < numRows; j++) {
+			rows[j] = offRow.slice();
+		}
+		return new DitherPattern(rows);
+	}
+
+	static grid(width = 1, height = width, xGap = 1, yGap = xGap) {
+		const numRows = height + yGap;
+		const rows = new Array(numRows);
+		let row = new Array(width + xGap);
 		row.fill(1, 0, width);
 		row.fill(0, width);
-		return new DitherPattern([row]);
+		for (let j = 0; j < height; j++) {
+			rows[j] = row.slice();
+		}
+		row.fill(0);
+		for (let j = height; j < numRows; j++) {
+			rows[j] = row.slice();
+		}
+		return new DitherPattern(rows);
 	}
+
 }
 
 const canvas = document.getElementById('pixel-canvas');
@@ -133,7 +156,7 @@ let fgColorStr = colorString(to32BitColor(fgColor));
 let bgColorStr = colorString(to32BitColor(bgColor));
 let meanColorStr = meanColor(to32BitColor(fgColor), to32BitColor(bgColor));
 
-let dither = DitherPattern.verticalStripes();
+let dither = DitherPattern.offsetDots(2, 0, 1, 0);
 let pattern = await dither.createPattern(context, fgColor);
 
 function draw() {
