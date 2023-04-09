@@ -1,0 +1,6 @@
+#pixel-canvas {
+	filter: blur(0.6px);
+	image-rendering: pixelated;
+	width: 1200px;
+	height: 600px;
+}
