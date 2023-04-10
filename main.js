@@ -1,3 +1,15 @@
+
+function gcd(a, b) {
+	while (b !== 0) {
+		[a, b] = [b, a % b];
+	}
+	return a;
+}
+
+function lcm(a, b) {
+	return (a * b) / gcd(a, b);
+}
+
 /**
  * N.B. Components of the result are in the range 0-1.
  */
@@ -87,24 +99,45 @@ class DitherPattern {
 		return context.createPattern(bitmap, 'repeat');
 	}
 
-	static offsetDots(modX = 2, offset = Math.trunc(modX / 2), yGap1 = 0, yGap2 = yGap1) {
+	static offsetDots(
+		modX1 = 2, modX2 = modX1, offset = Math.trunc(Math.min(modX1, modX2) / 2), changes = 0,
+		yGap1 = 0, yGap2 = yGap1
+	) {
 		const numRows = 2 + yGap1 + yGap2;
 		const rows = new Array(numRows);
+		const numColumns = lcm(modX1, modX2 * (changes === 0 ? 1 : Math.abs(changes) + 1));
 
-		const firstRow = new Array(modX);
-		rows[0] = firstRow;
-		firstRow[0] = 1;
+		const firstRow = new Array(numColumns);
 		firstRow.fill(0, 1);
+		const repeats1 = numColumns / modX1;
+		for (let i = 0; i < repeats1; i++) {
+			firstRow[i * modX1] = 1;
+		}
+		rows[0] = firstRow;
 
-		const emptyRow = new Array(modX);
+		const emptyRow = new Array(numColumns);
 		emptyRow.fill(0);
 		for (let j = 1; j <= yGap1; j++) {
 			rows[j] = emptyRow.slice();
 		}
 
-		const secondRow = firstRow.slice(-offset);
-		for (let i = offset; i < modX; i++) {
-			secondRow[i] = firstRow[i - offset];
+		const secondRow = new Array(numColumns);
+		secondRow.fill(0);
+		const repeats2 = numColumns / modX2;
+		for (let i = 0; i < repeats2; i++) {
+			secondRow[(i * modX2 + offset) % numColumns] = 1;
+		}
+		if (changes < 0) {
+			const deletionPeriod = -changes + 1;
+			for (let i = (deletionPeriod - 1) * modX2; i < numColumns; i += deletionPeriod * modX2) {
+				secondRow[(i + offset) % numColumns] = 0;
+			}
+		} else if (changes > 0) {
+			const additionPeriod = changes + 1;
+			const halfOffset = Math.trunc(0.5 * offset);
+			for (let i = (additionPeriod - 1) * modX2; i < numColumns; i += additionPeriod * modX2) {
+				secondRow[(i + halfOffset) % numColumns] = 1;
+			}
 		}
 		rows[1 + yGap1] = secondRow;
 
@@ -150,13 +183,13 @@ class DitherPattern {
 const canvas = document.getElementById('pixel-canvas');
 const context = canvas.getContext('2d');
 
-let fgColor = twelveBitHSLA(30, 5, 5);
+let fgColor = twelveBitHSLA(22, 15, 4);
 let bgColor = twelveBitHSLA(30, 15, 5);
 let fgColorStr = colorString(to32BitColor(fgColor));
 let bgColorStr = colorString(to32BitColor(bgColor));
 let meanColorStr = meanColor(to32BitColor(fgColor), to32BitColor(bgColor));
 
-let dither = DitherPattern.offsetDots(2, 0, 1, 0);
+let dither = DitherPattern.offsetDots(4, 2, 1, 1);
 let pattern = await dither.createPattern(context, fgColor);
 
 function draw() {
