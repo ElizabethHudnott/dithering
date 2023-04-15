@@ -47,18 +47,18 @@ function to32BitColor(color) {
 }
 
 function seventeenBitColor(color1, color2) {
-	let r, g, b, a;
+	let r, g, b;
+	let a = 1;
 	if (color1[3] === 0) {
-		[r, g, b, a] = color2;
-		a *= 0.5;
+		[r, g, b] = color2;
+		a = 0.5;
 	} else if (color2[3] === 0) {
-		[r, g, b, a] = color1;
-		a *= 0.5;
+		[r, g, b] = color1;
+		a = 0.5;
 	} else {
 		r = 0.5 * (color1[0] + color2[0]);
 		g = 0.5 * (color1[1] + color2[1]);
 		b = 0.5 * (color1[2] + color2[2]);
-		a = 1;
 	}
 	return [r, g, b, a];
 }
