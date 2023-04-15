@@ -38,6 +38,8 @@ function thirteenBitHSLA(h, s, l, a = 1) {
 	return [r, g, b, a];
 }
 
+const TRANSPARENT = Object.freeze([0, 0, 0, 0]);
+
 function to32BitColor(color) {
 	const r = Math.trunc(color[0] * 17);	// 255/15 = 17
 	const g = Math.trunc(color[1] * 17);
@@ -90,13 +92,9 @@ class PatternTemplate {
 	 */
 	async createPattern(context, horizontalOffset, verticalOffset, thirteenBitColors) {
 		const numColors = thirteenBitColors.length;
-		const colors = new Array(Math.max(numColors + 1, 3));
-		colors[0] = [0, 0, 0, 0];
+		const colors = new Array(numColors);
 		for (let i = 0; i < numColors; i++) {
-			colors[i + 1] = to32BitColor(thirteenBitColors[i]);
-		}
-		if (numColors === 1) {
-			colors[2] = colors[1];
+			colors[i] = to32BitColor(thirteenBitColors[i]);
 		}
 		const width = this.width;
 		const height = this.height;
@@ -264,7 +262,7 @@ let meanColor = sixteenBitColor(fgColor, bgColor);
 let meanColorStr = colorString(to32BitColor(meanColor));
 
 let template = PatternTemplate.offsetDots(3);
-let pattern = await template.createPattern(context, 0, 0,[fgColor]);
+let pattern = await template.createPattern(context, 0, 0,[TRANSPARENT, fgColor, fgColor]);
 
 function draw() {
 	const totalWidth = canvas.width;
