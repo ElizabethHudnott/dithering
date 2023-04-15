@@ -46,7 +46,7 @@ function to32BitColor(color) {
 	return [r, g, b, a];
 }
 
-function seventeenBitColor(color1, color2) {
+function sixteenBitColor(color1, color2) {
 	let r, g, b;
 	let a = 1;
 	if (color1[3] === 0) {
@@ -260,7 +260,7 @@ let fgColor = thirteenBitHSLA(0, 15, 8);
 let bgColor = thirteenBitHSLA(23, 15, 8);
 let fgColorStr = colorString(to32BitColor(fgColor));
 let bgColorStr = colorString(to32BitColor(bgColor));
-let meanColor = seventeenBitColor(fgColor, bgColor);
+let meanColor = sixteenBitColor(fgColor, bgColor);
 let meanColorStr = colorString(to32BitColor(meanColor));
 
 let template = PatternTemplate.offsetDots(3);
