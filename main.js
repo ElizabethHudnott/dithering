@@ -58,7 +58,7 @@ function colorString(color) {
 	return `rgba(${color[0]}, ${color[1]}, ${color[2]}, ${alpha})`;
 }
 
-class DitherPattern {
+class PatternTemplate {
 
 	/**
 	 * @param {string[]} pattern;
@@ -105,7 +105,7 @@ class DitherPattern {
 		return context.createPattern(bitmap, 'repeat');
 	}
 
-	invert() {
+	remap(mapping = [1, 0, 2]) {
 		const oldRows = this.pattern;
 		const numRows = oldRows.length;
 		const numColumns = oldRows[0].length;
@@ -116,14 +116,7 @@ class DitherPattern {
 			newRows[j] = newRow;
 			for (let i = 0; i < numColumns; i++) {
 				const value = oldRow[i];
-				switch (value) {
-				case 0:
-					newRow[i] = 1;
-					break;
-				case 1:
-					newRow[i] = 0;
-					break;
-				}
+				newRow[i] = mapping[value];
 			}
 		}
 		this.pattern = newRows;
@@ -208,7 +201,7 @@ class DitherPattern {
 			rows[j] = emptyRow.slice();
 		}
 
-		return new DitherPattern(rows);
+		return new PatternTemplate(rows);
 	}
 
 	static horizontalStripes(height = 1, gap = 1) {
@@ -222,7 +215,7 @@ class DitherPattern {
 		for (let j = height; j < numRows; j++) {
 			rows[j] = offRow.slice();
 		}
-		return new DitherPattern(rows);
+		return new PatternTemplate(rows);
 	}
 
 	static grid(width = 1, height = width, xGap = 1, yGap = xGap) {
@@ -238,7 +231,7 @@ class DitherPattern {
 		for (let j = height; j < numRows; j++) {
 			rows[j] = row.slice();
 		}
-		return new DitherPattern(rows);
+		return new PatternTemplate(rows);
 	}
 
 }
@@ -252,8 +245,8 @@ let fgColorStr = colorString(to32BitColor(fgColor));
 let bgColorStr = colorString(to32BitColor(bgColor));
 let meanColorStr = meanColor(to32BitColor(fgColor), to32BitColor(bgColor));
 
-let dither = DitherPattern.offsetDots(4);
-let pattern = await dither.createPattern(context, 0, 0, [fgColor]);
+let template = PatternTemplate.offsetDots(3);
+let pattern = await template.createPattern(context, 0, 0, [fgColor]);
 
 function draw() {
 	const totalWidth = canvas.width;
