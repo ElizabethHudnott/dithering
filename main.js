@@ -90,22 +90,30 @@ class PatternTemplate {
 	/**
 	 * @param {number[]} color
 	 */
-	async createPattern(context, horizontalOffset, verticalOffset, thirteenBitColors) {
-		const numColors = thirteenBitColors.length;
-		const colors = new Array(numColors);
-		for (let i = 0; i < numColors; i++) {
-			colors[i] = to32BitColor(thirteenBitColors[i]);
+	async createPattern(context, trueColors, xOffset = 0, yOffset = 0, rainbow = undefined, rainbowScale = 1, rainbowIndex = 0) {
+		const numColors = trueColors.length;
+		const patternWidth = this.width;
+		const patternHeight = this.height;
+		let imageHeight = patternHeight;
+		let rainbowHeight;
+		if (rainbow !== undefined) {
+			rainbowHeight = rainbowScale * rainbow.length;
+			imageHeight = Math.min(lcm(patternHeight, rainbowHeight), 540);
 		}
-		const width = this.width;
-		const height = this.height;
-		const imageData = context.createImageData(width, height);
+		const imageData = context.createImageData(patternWidth, imageHeight);
 		const pixels = imageData.data;
 		let offset = 0;
-		for (let j = 0; j < height; j++) {
-			const row = this.pattern[(j + verticalOffset) % height];
-			for (let i = 0; i < width; i++) {
-				const value = row[(i + horizontalOffset) % width];
-				pixels.set(colors[value], offset);
+		for (let j = 0; j < imageHeight; j++) {
+			const row = this.pattern[(j + yOffset) % patternHeight];
+			for (let i = 0; i < patternWidth; i++) {
+				const value = row[(i + xOffset) % patternWidth];
+				let color;
+				if (rainbow !== undefined && value === rainbowIndex) {
+					color = rainbow[Math.trunc((j % rainbowHeight) / rainbowScale)];
+				} else {
+					color = trueColors[value];
+				}
+				pixels.set(color, offset);
 				offset += 4;
 			}
 		}
@@ -134,8 +142,7 @@ class PatternTemplate {
 				}
 			}
 		}
-		this.pattern = newRows;
-		return this;
+		return new PatternTemplate(newRows);
 	}
 
 	doubleX() {
@@ -153,8 +160,7 @@ class PatternTemplate {
 				newRow[2 * i + 1] = value;
 			}
 		}
-		this.pattern = newRows;
-		return this;
+		return new PatternTemplate(newRows);
 	}
 
 	doubleY() {
@@ -163,11 +169,34 @@ class PatternTemplate {
 		const newRows = new Array(numRows * 2);
 		for (let j = 0; j < numRows; j++) {
 			const row = oldRows[j];
-			newRows[2 * j] = row;
+			newRows[2 * j] = row.slice();
 			newRows[2 * j + 1] = row.slice();
 		}
-		this.pattern = newRows;
-		return this;
+		return new PatternTemplate(newRows);
+	}
+
+	offset(map) {
+		const oldRows = this.pattern;
+		const numOldRows = oldRows.length;
+		const numOldColumns = oldRows[0].length;
+		const numMapRows = map.length;
+		const numMapColumns = map[0].length;
+		const numNewRows = lcm(numOldRows, numMapRows);
+		const numNewColumns = lcm(numOldColumns, numMapColumns);
+		const newRows = new Array(numNewRows);
+		const noMovement = [0, 0];
+		for (let j = 0; j < numNewRows; j++) {
+			const rowDeltas = map[j % numMapRows];
+			const newRow = new Array(numNewColumns);
+			newRows[j] = newRow;
+			for (let i = 0; i < numNewColumns; i++) {
+				const delta = rowDeltas[i % numMapColumns] || noMovement;
+				const x = (i + delta[0] + numOldColumns) % numOldColumns;
+				const y = (j + delta[1] + numOldRows) % numOldRows;
+				newRow[i] = oldRows[y][x];
+			}
+		}
+		return new PatternTemplate(newRows);
 	}
 
 	static offsetDots(
@@ -259,25 +288,51 @@ let bgColor = thirteenBitHSLA(23, 15, 8);
 let fgColorStr = colorString(to32BitColor(fgColor));
 let bgColorStr = colorString(to32BitColor(bgColor));
 let meanColorStr = colorString(meanColor(to32BitColor(fgColor), to32BitColor(bgColor)));
+let patternColours = [TRANSPARENT, fgColor, fgColor].map(to32BitColor);
+let rainbow = [fgColor, [0, 0, 15, 1]];
+let rainbowColours = rainbow.map(to32BitColor);
 
-let template = PatternTemplate.offsetDots(3);
-let pattern = await template.createPattern(context, 0, 0,[TRANSPARENT, fgColor, fgColor]);
+const templates = new Array(2);
+templates[0] = PatternTemplate.offsetDots();
+templates[1] = templates[0].offset([ [ [1, 0], [-1, 0] ] ]);
+let patterns = await Promise.all([
+	templates[0].createPattern(context, patternColours, 0, 0, rainbowColours, 2, 1),
+	templates[1].createPattern(context, patternColours)
+]);
 
-function draw() {
+let leftWidth, topHeight;
+
+function calculateSize() {
+	leftWidth = Math.ceil(0.5 * canvas.width);
+	topHeight = Math.ceil(0.5 * canvas.height);
+}
+
+calculateSize();
+
+function drawPattern(frameNumber) {
+	context.fillStyle = bgColorStr;
+	context.fillRect(0, 0, leftWidth, topHeight);
+	context.fillStyle = patterns[frameNumber];
+	context.fillRect(0, 0, leftWidth, topHeight);
+}
+
+function drawComparison() {
 	const totalWidth = canvas.width;
 	const totalHeight = canvas.height;
-	const leftWidth = Math.ceil(0.5 * totalWidth);
-	const topHeight = Math.ceil(0.5 * totalHeight);
 	const rightWidth = totalWidth - leftWidth;
 	const bottomHeight = totalHeight - topHeight;
+	// Background colour
 	context.fillStyle = bgColorStr;
-	context.fillRect(0, 0, totalWidth, topHeight);
-	context.fillStyle = pattern;
-	context.fillRect(0, 0, leftWidth, topHeight);
+	context.fillRect(leftWidth, 0, rightWidth, topHeight);
+
+	// Averaged colour
 	context.fillStyle = meanColorStr;
 	context.fillRect(0, topHeight, leftWidth, bottomHeight);
+
+	// Foreground colour
 	context.fillStyle = fgColorStr;
 	context.fillRect(leftWidth, topHeight, rightWidth, bottomHeight);
 }
 
-draw();
+drawPattern(0);
+drawComparison();
