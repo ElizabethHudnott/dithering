@@ -41,26 +41,26 @@ function thirteenBitHSLA(h, s, l, a = 1) {
 const TRANSPARENT = Object.freeze([0, 0, 0, 0]);
 
 function to32BitColor(color) {
-	const r = Math.trunc(color[0] * 17);	// 255/15 = 17
-	const g = Math.trunc(color[1] * 17);
-	const b = Math.trunc(color[2] * 17);
-	const a = Math.trunc(color[3] * 255);
+	const r = color[0] * 17;	// 255/15 = 17
+	const g = color[1] * 17;
+	const b = color[2] * 17;
+	const a = color[3] * 255;
 	return [r, g, b, a];
 }
 
-function sixteenBitColor(color1, color2) {
+function meanColor(color1, color2) {
 	let r, g, b;
-	let a = 1;
+	let a = 255;
 	if (color1[3] === 0) {
 		[r, g, b] = color2;
-		a = 0.5;
+		a = 128;
 	} else if (color2[3] === 0) {
 		[r, g, b] = color1;
-		a = 0.5;
+		a = 128;
 	} else {
-		r = 0.5 * (color1[0] + color2[0]);
-		g = 0.5 * (color1[1] + color2[1]);
-		b = 0.5 * (color1[2] + color2[2]);
+		r = Math.trunc(0.5 * (color1[0] + color2[0]));
+		g = Math.ceil(0.5 * (color1[1] + color2[1]));
+		b = Math.trunc(0.5 * (color1[2] + color2[2]));
 	}
 	return [r, g, b, a];
 }
@@ -258,8 +258,7 @@ let fgColor = thirteenBitHSLA(0, 15, 8);
 let bgColor = thirteenBitHSLA(23, 15, 8);
 let fgColorStr = colorString(to32BitColor(fgColor));
 let bgColorStr = colorString(to32BitColor(bgColor));
-let meanColor = sixteenBitColor(fgColor, bgColor);
-let meanColorStr = colorString(to32BitColor(meanColor));
+let meanColorStr = colorString(meanColor(to32BitColor(fgColor), to32BitColor(bgColor)));
 
 let template = PatternTemplate.offsetDots(3);
 let pattern = await template.createPattern(context, 0, 0,[TRANSPARENT, fgColor, fgColor]);
